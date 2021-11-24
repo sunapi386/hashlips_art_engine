@@ -20,6 +20,7 @@ const {
   namePrefix,
   network,
   solanaMetadata,
+  adaMetadata,
   gif,
 } = require(`${basePath}/src/config.js`);
 const canvas = createCanvas(format.width, format.height);
@@ -34,8 +35,11 @@ const HashlipsGiffer = require(`${basePath}/modules/HashlipsGiffer.js`);
 let hashlipsGiffer = null;
 
 const buildSetup = () => {
+  loadFilewDnaList();
+
   if (fs.existsSync(buildDir)) {
-    fs.rmdirSync(buildDir, { recursive: true });
+    // fs.rmdirSync(buildDir, { recursive: true });
+    return; // we want to append to our collection, don't remove existing build artifacts
   }
   fs.mkdirSync(buildDir);
   fs.mkdirSync(`${buildDir}/json`);
@@ -88,15 +92,15 @@ const layersSetup = (layersOrder) => {
     id: index,
     elements: getElements(`${layersDir}/${layerObj.name}/`),
     name:
-      layerObj.options?.["displayName"] != undefined
+      layerObj.options?.["displayName"] !== undefined
         ? layerObj.options?.["displayName"]
         : layerObj.name,
     blend:
-      layerObj.options?.["blend"] != undefined
+      layerObj.options?.["blend"] !== undefined
         ? layerObj.options?.["blend"]
         : "source-over",
     opacity:
-      layerObj.options?.["opacity"] != undefined
+      layerObj.options?.["opacity"] !== undefined
         ? layerObj.options?.["opacity"]
         : 1,
     bypassDNA:
@@ -136,32 +140,36 @@ const addMetadata = (_dna, _edition) => {
     date: dateTime,
     ...extraMetadata,
     attributes: attributesList,
-    compiler: "HashLips Art Engine",
+    compiler: "ROAM",
   };
-  if (network == NETWORK.sol) {
-    tempMetadata = {
-      //Added metadata for solana
-      name: tempMetadata.name,
-      symbol: solanaMetadata.symbol,
-      description: tempMetadata.description,
-      //Added metadata for solana
-      seller_fee_basis_points: solanaMetadata.seller_fee_basis_points,
-      image: `image.png`,
-      //Added metadata for solana
-      external_url: solanaMetadata.external_url,
-      edition: _edition,
-      ...extraMetadata,
-      attributes: tempMetadata.attributes,
-      properties: {
-        files: [
-          {
-            uri: "image.png",
-            type: "image/png",
-          },
-        ],
-        category: "image",
-        creators: solanaMetadata.creators,
-      },
+  if (network === NETWORK.ada) {
+    tempMetadata.symbol = adaMetadata.symbol;
+    tempMetadata.seller_fee_basis_points = adaMetadata.seller_fee_basis_points;
+    tempMetadata.external_url = adaMetadata.external_url;
+    tempMetadata.properties = {
+      files: [
+        {
+          uri: "image.png",
+          type: "image/png",
+        },
+      ],
+      category: "image",
+      creators: adaMetadata.creators,
+    };
+  } else if (network === NETWORK.sol) {
+    tempMetadata.symbol = solanaMetadata.symbol;
+    tempMetadata.seller_fee_basis_points =
+      solanaMetadata.seller_fee_basis_points;
+    tempMetadata.external_url = solanaMetadata.external_url;
+    tempMetadata.properties = {
+      files: [
+        {
+          uri: "image.png",
+          type: "image/png",
+        },
+      ],
+      category: "image",
+      creators: solanaMetadata.creators,
     };
   }
   metadataList.push(tempMetadata);
@@ -301,7 +309,7 @@ const writeMetaData = (_data) => {
 };
 
 const saveMetaDataSingleFile = (_editionCount) => {
-  let metadata = metadataList.find((meta) => meta.edition == _editionCount);
+  let metadata = metadataList.find((meta) => meta.edition === _editionCount);
   debugLogs
     ? console.log(
         `Writing metadata for ${_editionCount}: ${JSON.stringify(metadata)}`
@@ -316,7 +324,7 @@ const saveMetaDataSingleFile = (_editionCount) => {
 function shuffle(array) {
   let currentIndex = array.length,
     randomIndex;
-  while (currentIndex != 0) {
+  while (currentIndex !== 0) {
     randomIndex = Math.floor(Math.random() * currentIndex);
     currentIndex--;
     [array[currentIndex], array[randomIndex]] = [
@@ -327,17 +335,42 @@ function shuffle(array) {
   return array;
 }
 
+function loadFilewDnaList() {
+  try {
+    let buffer = fs.readFileSync(`${buildDir}/dnaList.json`);
+    console.log("loaded DNAs from", `${buildDir}/dnaList.json`);
+    let jsonObj = JSON.parse(buffer);
+    for (const key in jsonObj) {
+      let val = jsonObj[key];
+      console.log("loaded", key);
+      dnaList.add(val);
+    }
+  } catch (e) {
+    console.log("no DNAs to load from", `${buildDir}/dnaList.json`);
+  }
+}
+
+function writeFileDnaList(dnaList) {
+  var existingSha1s = {};
+  for (const dna of dnaList) {
+    let sha1sum = sha1(dna);
+    existingSha1s[sha1sum] = dna;
+  }
+  let jsonStr = JSON.stringify(existingSha1s, null, 2);
+  fs.writeFileSync(`${buildDir}/dnaList.json`, jsonStr);
+}
+
 const startCreating = async () => {
   let layerConfigIndex = 0;
   let editionCount = 1;
   let failedCount = 0;
   let abstractedIndexes = [];
   for (
-    let i = network == NETWORK.sol ? 0 : 1;
+    let i = network === NETWORK.sol ? 0 : 1;
     i <= layerConfigurations[layerConfigurations.length - 1].growEditionSizeTo;
     i++
   ) {
-    abstractedIndexes.push(i);
+    abstractedIndexes.push(i + dnaList.size);
   }
   if (shuffleLayerConfigurations) {
     abstractedIndexes = shuffle(abstractedIndexes);
@@ -413,6 +446,7 @@ const startCreating = async () => {
           console.log(
             `You need more layers or elements to grow your edition to ${layerConfigurations[layerConfigIndex].growEditionSizeTo} artworks!`
           );
+          writeFileDnaList(dnaList);
           process.exit();
         }
       }
@@ -420,6 +454,7 @@ const startCreating = async () => {
     layerConfigIndex++;
   }
   writeMetaData(JSON.stringify(metadataList, null, 2));
+  writeFileDnaList(dnaList);
 };
 
 module.exports = { startCreating, buildSetup, getElements };

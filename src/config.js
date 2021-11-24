@@ -2,20 +2,33 @@ const basePath = process.cwd();
 const { MODE } = require(`${basePath}/constants/blend_mode.js`);
 const { NETWORK } = require(`${basePath}/constants/network.js`);
 
-const network = NETWORK.eth;
+const network = NETWORK.ada;
 
 // General metadata for Ethereum
-const namePrefix = "Your Collection";
-const description = "Remember to replace this description";
-const baseUri = "ipfs://NewUriToReplace";
+const namePrefix = "Roaming Llamas";
+const description = "Unique NFT lamas issued from ROAM!";
+const baseUri =
+  "ipfs://QmUCNU51aMqp5Emhnutr1vA2MHqMf6mJb8T3spMpvgJG88?filename=";
 
 const solanaMetadata = {
   symbol: "YC",
-  seller_fee_basis_points: 1000, // Define how much % you want from secondary market sales 1000 = 10%
-  external_url: "https://www.youtube.com/c/hashlipsnft",
+  seller_fee_basis_points: 200, // Define how much % you want from secondary market sales 1000 = 10%
+  external_url: "https://roampool.com/nfts",
   creators: [
     {
       address: "7fXNuer5sbZtaTEPhtJ5g5gNtuyRoKkvxdjEjEnPN4mC",
+      share: 100,
+    },
+  ],
+};
+const adaMetadata = {
+  symbol: "ROAM",
+  seller_fee_basis_points: 200, // Define how much % you want from secondary market sales 1000 = 10%
+  external_url: "https://roampool.com/nfts",
+  creators: [
+    {
+      address:
+        "addr1q8vczftecp45segsjvy2pk3fz3zc6s02np3d4ukyc7wp3dp6mhxrefruqptr93usqs0eqqlluueulx5ee8zd9xyq95mq4qqs5q",
       share: 100,
     },
   ],
@@ -26,13 +39,11 @@ const layerConfigurations = [
   {
     growEditionSizeTo: 5,
     layersOrder: [
-      { name: "Background" },
-      { name: "Eyeball" },
-      { name: "Eye color" },
-      { name: "Iris" },
-      { name: "Shine" },
-      { name: "Bottom lid" },
-      { name: "Top lid" },
+      { name: "background" },
+      { name: "face" },
+      { name: "glasses" },
+      { name: "hat" },
+      { name: "neck" },
     ],
   },
 ];
@@ -44,7 +55,7 @@ const debugLogs = false;
 const format = {
   width: 512,
   height: 512,
-  smoothing: false,
+  smoothing: true,
 };
 
 const gif = {
@@ -117,6 +128,7 @@ module.exports = {
   namePrefix,
   network,
   solanaMetadata,
+  adaMetadata,
   gif,
   preview_gif,
 };
