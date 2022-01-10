@@ -1,13 +1,14 @@
 const basePath = process.cwd();
 const { NETWORK } = require(`${basePath}/constants/network.js`);
 const fs = require("fs");
-const sha1 = require(`${basePath}/node_modules/sha1`);
-const { createCanvas, loadImage } = require(`${basePath}/node_modules/canvas`);
+const sha256 = require("sha256");
+const { createCanvas, loadImage } = require("canvas");
 const buildDir = `${basePath}/build`;
 const layersDir = `${basePath}/layers`;
 const {
   format,
-  baseUri,
+  ipfsBaseUri,
+  httpsBaseUri,
   description,
   background,
   uniqueDnaTorrance,
@@ -112,10 +113,9 @@ const layersSetup = (layersOrder) => {
 };
 
 const saveImage = (_editionCount) => {
-  fs.writeFileSync(
-    `${buildDir}/images/${_editionCount}.png`,
-    canvas.toBuffer("image/png")
-  );
+  const buffer = canvas.toBuffer("image/png");
+  fs.writeFileSync(`${buildDir}/images/${_editionCount}.png`, buffer);
+  return sha256(buffer);
 };
 
 const genColor = () => {
@@ -129,48 +129,40 @@ const drawBackground = () => {
   ctx.fillRect(0, 0, format.width, format.height);
 };
 
-const addMetadata = (_dna, _edition) => {
+const addMetadata = (sha256Str, _edition) => {
   let dateTime = Date.now();
+  let ipfsPath = `${ipfsBaseUri}/${_edition}.png`;
+  let httpsPath = `${httpsBaseUri}/${_edition}.png`;
   let tempMetadata = {
+    id: _edition,
     name: `${namePrefix} #${_edition}`,
     description: description,
-    image: `${baseUri}/${_edition}.png`,
-    dna: sha1(_dna),
+    image: ipfsPath,
+    location: {
+      ipfs: ipfsPath,
+      https: httpsPath,
+    },
+    sha256: sha256Str,
     edition: _edition,
     date: dateTime,
-    ...extraMetadata,
     attributes: attributesList,
-    compiler: "ROAM",
+    compiler: "roampool.com",
+    type: "image/png",
+    uri: `${_edition}.png`,
+    category: "image",
+    ...extraMetadata,
   };
   if (network === NETWORK.ada) {
     tempMetadata.symbol = adaMetadata.symbol;
     tempMetadata.seller_fee_basis_points = adaMetadata.seller_fee_basis_points;
     tempMetadata.external_url = adaMetadata.external_url;
-    tempMetadata.properties = {
-      files: [
-        {
-          uri: "image.png",
-          type: "image/png",
-        },
-      ],
-      category: "image",
-      creators: adaMetadata.creators,
-    };
+    tempMetadata.creators = adaMetadata.creators;
   } else if (network === NETWORK.sol) {
     tempMetadata.symbol = solanaMetadata.symbol;
     tempMetadata.seller_fee_basis_points =
       solanaMetadata.seller_fee_basis_points;
     tempMetadata.external_url = solanaMetadata.external_url;
-    tempMetadata.properties = {
-      files: [
-        {
-          uri: "image.png",
-          type: "image/png",
-        },
-      ],
-      category: "image",
-      creators: solanaMetadata.creators,
-    };
+    tempMetadata.creators = solanaMetadata.creators;
   }
   metadataList.push(tempMetadata);
   attributesList = [];
@@ -223,7 +215,7 @@ const drawElement = (_renderObject, _index, _layersLen) => {
 const constructLayerToDna = (_dna = "", _layers = []) => {
   let mappedDnaToLayers = _layers.map((layer, index) => {
     let selectedElement = layer.elements.find(
-      (e) => e.id == cleanDna(_dna.split(DNA_DELIMITER)[index])
+      (e) => e.id === cleanDna(_dna.split(DNA_DELIMITER)[index])
     );
     return {
       name: layer.name,
@@ -351,12 +343,12 @@ function loadFilewDnaList() {
 }
 
 function writeFileDnaList(dnaList) {
-  var existingSha1s = {};
+  var existingSha256s = {};
   for (const dna of dnaList) {
-    let sha1sum = sha1(dna);
-    existingSha1s[sha1sum] = dna;
+    let sha256sum = sha256(dna);
+    existingSha256s[sha256sum] = dna;
   }
-  let jsonStr = JSON.stringify(existingSha1s, null, 2);
+  let jsonStr = JSON.stringify(existingSha256s, null, 2);
   fs.writeFileSync(`${buildDir}/dnaList.json`, jsonStr);
 }
 
@@ -427,13 +419,12 @@ const startCreating = async () => {
           debugLogs
             ? console.log("Editions left to create: ", abstractedIndexes)
             : null;
-          saveImage(abstractedIndexes[0]);
-          addMetadata(newDna, abstractedIndexes[0]);
+          let sha256Img = saveImage(abstractedIndexes[0]);
+          addMetadata(sha256Img, abstractedIndexes[0]);
           saveMetaDataSingleFile(abstractedIndexes[0]);
+          let sha256Dna = sha256(newDna);
           console.log(
-            `Created edition: ${abstractedIndexes[0]}, with DNA: ${sha1(
-              newDna
-            )}`
+            `Created edition: ${abstractedIndexes[0]}, with DNA: ${newDna} sha256Dna: ${sha256Dna} sha256Img: ${sha256Img}`
           );
         });
         dnaList.add(filterDNAOptions(newDna));

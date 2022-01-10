@@ -7,8 +7,9 @@ const network = NETWORK.ada;
 // General metadata for Ethereum
 const namePrefix = "Roaming Llamas";
 const description = "Unique NFT lamas issued from ROAM!";
-const baseUri =
+const ipfsBaseUri =
   "ipfs://QmUCNU51aMqp5Emhnutr1vA2MHqMf6mJb8T3spMpvgJG88?filename=";
+const httpsBaseUri = "https://roampool.com/llamas/image";
 
 const solanaMetadata = {
   symbol: "YC",
@@ -113,7 +114,8 @@ const preview_gif = {
 
 module.exports = {
   format,
-  baseUri,
+  ipfsBaseUri,
+  httpsBaseUri,
   description,
   background,
   uniqueDnaTorrance,
