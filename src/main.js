@@ -114,7 +114,10 @@ const layersSetup = (layersOrder) => {
 
 const saveImage = (_editionCount) => {
   const buffer = canvas.toBuffer("image/png");
-  fs.writeFileSync(`${buildDir}/images/${_editionCount}.png`, buffer);
+  fs.writeFileSync(
+    `${buildDir}/images/${namePrefix}-${_editionCount}.png`,
+    buffer
+  );
   return sha256(buffer);
 };
 
@@ -130,12 +133,13 @@ const drawBackground = () => {
 };
 
 const addMetadata = (sha256Str, _edition) => {
+  let filename = `${namePrefix}-${_edition}.png`;
   let dateTime = Date.now();
-  let ipfsPath = `${ipfsBaseUri}/${_edition}.png`;
-  let httpsPath = `${httpsBaseUri}/${_edition}.png`;
+  let ipfsPath = `${ipfsBaseUri}/${filename}`;
+  let httpsPath = `${httpsBaseUri}/${filename}`;
   let tempMetadata = {
     id: _edition,
-    name: `${namePrefix} #${_edition}`,
+    name: filename,
     description: description,
     image: ipfsPath,
     location: {
@@ -143,12 +147,10 @@ const addMetadata = (sha256Str, _edition) => {
       https: httpsPath,
     },
     sha256: sha256Str,
-    edition: _edition,
-    date: dateTime,
+    create_date: dateTime,
     attributes: attributesList,
-    compiler: "roampool.com",
+    author: "roampool.com",
     type: "image/png",
-    uri: `${_edition}.png`,
     category: "image",
     ...extraMetadata,
   };
@@ -296,8 +298,9 @@ const createDna = (_layers) => {
   return randNum.join(DNA_DELIMITER);
 };
 
-const writeMetaData = (_data) => {
-  fs.writeFileSync(`${buildDir}/json/_metadata.json`, _data);
+const writeMetaData = () => {
+  let jsonStr = JSON.stringify(metadataList, null, 2);
+  fs.writeFileSync(`${buildDir}/json/_metadata.json`, jsonStr);
 };
 
 const saveMetaDataSingleFile = (_editionCount) => {
@@ -308,7 +311,7 @@ const saveMetaDataSingleFile = (_editionCount) => {
       )
     : null;
   fs.writeFileSync(
-    `${buildDir}/json/${_editionCount}.json`,
+    `${buildDir}/json/${namePrefix}-${_editionCount}.json`,
     JSON.stringify(metadata, null, 2)
   );
 };
@@ -389,11 +392,12 @@ const startCreating = async () => {
         await Promise.all(loadedElements).then((renderObjectArray) => {
           debugLogs ? console.log("Clearing canvas") : null;
           ctx.clearRect(0, 0, format.width, format.height);
+          let edition = abstractedIndexes[0];
           if (gif.export) {
             hashlipsGiffer = new HashlipsGiffer(
               canvas,
               ctx,
-              `${buildDir}/gifs/${abstractedIndexes[0]}.gif`,
+              `${buildDir}/gifs/${edition}.gif`,
               gif.repeat,
               gif.quality,
               gif.delay
@@ -419,12 +423,13 @@ const startCreating = async () => {
           debugLogs
             ? console.log("Editions left to create: ", abstractedIndexes)
             : null;
-          let sha256Img = saveImage(abstractedIndexes[0]);
-          addMetadata(sha256Img, abstractedIndexes[0]);
-          saveMetaDataSingleFile(abstractedIndexes[0]);
+          let sha256Img = saveImage(edition);
+          addMetadata(sha256Img, edition);
+          saveMetaDataSingleFile(edition);
           let sha256Dna = sha256(newDna);
+          let filename = `${namePrefix}-${edition}`;
           console.log(
-            `Created edition: ${abstractedIndexes[0]}, with DNA: ${newDna} sha256Dna: ${sha256Dna} sha256Img: ${sha256Img}`
+            `Created: ${filename}, with DNA: ${newDna} sha256Dna: ${sha256Dna} sha256Img: ${sha256Img}`
           );
         });
         dnaList.add(filterDNAOptions(newDna));
@@ -437,6 +442,7 @@ const startCreating = async () => {
           console.log(
             `You need more layers or elements to grow your edition to ${layerConfigurations[layerConfigIndex].growEditionSizeTo} artworks!`
           );
+          writeMetaData();
           writeFileDnaList(dnaList);
           process.exit();
         }
@@ -444,7 +450,7 @@ const startCreating = async () => {
     }
     layerConfigIndex++;
   }
-  writeMetaData(JSON.stringify(metadataList, null, 2));
+  writeMetaData();
   writeFileDnaList(dnaList);
 };
 

@@ -5,7 +5,7 @@ const { NETWORK } = require(`${basePath}/constants/network.js`);
 const network = NETWORK.ada;
 
 // General metadata for Ethereum
-const namePrefix = "Roaming Llamas";
+const namePrefix = "roam-llama";
 const description = "Unique NFT lamas issued from ROAM!";
 const ipfsBaseUri =
   "ipfs://QmUCNU51aMqp5Emhnutr1vA2MHqMf6mJb8T3spMpvgJG88?filename=";
